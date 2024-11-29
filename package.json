@@ -1,15 +1,28 @@
 {
-  "name": "dynamicstreammanager",
+  "name": "DynamicStreamManager",
   "version": "1.0.0",
   "description": "This repository is home to a dynamic stream manager using FFMPEG to manage inputted RTMP streams",
-  "main": "index.js",
+  "main": "server.js",
+  "bin": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node server.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
     "node-media-server": "^2.7.0"
+  },
+  "pkg": {
+    "assets": [
+      "StreamManagerFFMPEG.js",
+      "node_modules/node-media-server/**/*"
+    ],
+    "targets": [
+      "node14-macos-x64",
+      "node14-linux-x64",
+      "node14-win-x64"
+    ],
+    "outputPath": "dist"
   }
 }

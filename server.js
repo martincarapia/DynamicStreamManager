@@ -1,6 +1,6 @@
 const http = require('http');
 const url = require('url');
-const { spawn } = require('child_process');
+const StreamManager = require('./StreamManagerFFMPEG');
 const NodeMediaServer = require('node-media-server');
 
 // RTMP server configuration
@@ -21,12 +21,13 @@ const config = {
 const nms = new NodeMediaServer(config);
 nms.run();
 
+const streamManager = new StreamManager();
+
 const requestHandler = (req, res) => {
     if (req.method === 'GET') {
         const parsedUrl = url.parse(req.url, true);
         const queryParams = parsedUrl.query;
 
-        const scriptPath = queryParams.script_path;
         const action = queryParams.action;
         const inputs = [];
         for (let i = 0; queryParams[`input${i}`]; i++) {
@@ -34,46 +35,36 @@ const requestHandler = (req, res) => {
         }
         const output = queryParams.output;
 
-        if (scriptPath && action) {
-            let args = [];
+        if (action) {
             if (action === 'start' && inputs.length > 0 && output) {
-                args = [scriptPath, action, '--inputs', ...inputs, '--output', output];
+                try {
+                    streamManager.combineRtmpStreams(inputs, output);
+                    res.writeHead(200, { 'Content-Type': 'text/plain' });
+                    res.end("Output stream has started.");
+                } catch (error) {
+                    res.writeHead(500, { 'Content-Type': 'text/plain' });
+                    res.end(`Error starting stream: ${error.message}`);
+                }
             } else if (action === 'stop') {
-                args = [scriptPath, action];
+                try {
+                    streamManager.stop();
+                    res.writeHead(200, { 'Content-Type': 'text/plain' });
+                    res.end("Output stream has been stopped.");
+                } catch (error) {
+                    res.writeHead(500, { 'Content-Type': 'text/plain' });
+                    res.end(`Error stopping stream: ${error.message}`);
+                }
             } else {
                 res.writeHead(400, { 'Content-Type': 'text/plain' });
                 res.end("Error: For 'start' action, inputs and output are required.");
-                return;
             }
-
-            const pythonProcess = spawn('python3', args);
-            let outputData = '';
-            let errorData = '';
-
-            pythonProcess.stdout.on('data', (data) => {
-                outputData += data.toString();
-            });
-
-            pythonProcess.stderr.on('data', (data) => {
-                errorData += data.toString();
-            });
-
-            pythonProcess.on('close', (code) => {
-                if (code === 0) {
-                    res.writeHead(200, { 'Content-Type': 'text/plain' });
-                    res.end(outputData);
-                } else {
-                    res.writeHead(500, { 'Content-Type': 'text/plain' });
-                    res.end(errorData);
-                }
-            });
         } else {
             res.writeHead(400, { 'Content-Type': 'text/plain' });
-            res.end("Error: script_path and action are required.");
+            res.end("Error: Action must be either 'start' or 'stop'.");
         }
     } else {
         res.writeHead(405, { 'Content-Type': 'text/plain' });
-        res.end("Method not allowed");
+        res.end("Error: Only GET method is supported.");
     }
 };
 
