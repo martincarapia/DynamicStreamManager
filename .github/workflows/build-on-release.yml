@@ -35,6 +35,17 @@ jobs:
         echo "Creating DMG on macOS"
         # Install create-dmg tool
         brew install create-dmg
+        # Ensure the background image exists
+        if [ ! -f assets/mielogo.jpeg ]; then
+          echo "Background image not found, using default."
+          mkdir -p assets
+          curl -o assets/mielogo.jpeg https://via.placeholder.com/800x400.png
+        fi
+        # Ensure the executable exists
+        if [ ! -f dist/DynamicStreamManager-macos ]; then
+          echo "DynamicStreamManager-macos not found in dist directory."
+          exit 1
+        fi
         # Create the DMG
         create-dmg \
             --volname "DynamicStreamManager" \
@@ -42,8 +53,8 @@ jobs:
             --window-pos 200 120 \
             --window-size 800 400 \
             --icon-size 100 \
-            --icon "DynamicStreamManager.app" 200 190 \
-            --hide-extension "DynamicStreamManager.app" \
+            --icon "DynamicStreamManager-macos" 200 190 \
+            --hide-extension "DynamicStreamManager-macos" \
             --app-drop-link 600 185 \
             "dist/DynamicStreamManager.dmg" \
             "dist"
