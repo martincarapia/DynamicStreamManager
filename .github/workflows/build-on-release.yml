@@ -58,8 +58,8 @@ jobs:
             --app-drop-link 600 185 \
             "dist/DynamicStreamManager.dmg" \
             "dist"
-        # Delete all artifacts except .dmg
-        find dist -type f ! -name '*.dmg' -delete
+        # Delete all artifacts except .dmg, DynamicStreamManager-win.exe, and DynamicStreamManager-linux
+        find dist -type f ! -name '*.dmg' ! -name 'DynamicStreamManager-win.exe' ! -name 'DynamicStreamManager-linux' -delete
 
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
