@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
 
     steps:
     - name: Checkout code
@@ -19,7 +19,7 @@ jobs:
     - name: Set up Node.js
       uses: actions/setup-node@v3
       with:
-        node-version: '14'
+        node-version: '16'
 
     - name: Install dependencies
       run: npm install
@@ -28,6 +28,38 @@ jobs:
       run: |
         npm install -g pkg
         pkg .
+
+    - name: Create DMG on macOS
+      if: runner.os == 'macOS'
+      run: |
+        echo "Creating DMG on macOS"
+        # Install create-dmg tool
+        brew install create-dmg
+        # Ensure the background image exists
+        if [ ! -f assets/mielogo.jpeg ]; then
+          echo "Background image not found, using default."
+          mkdir -p assets
+          curl -o assets/mielogo.jpeg https://via.placeholder.com/800x400.png
+        fi
+        # Ensure the executable exists
+        if [ ! -f dist/DynamicStreamManager-macos ]; then
+          echo "DynamicStreamManager-macos not found in dist directory."
+          exit 1
+        fi
+        # Create the DMG
+        create-dmg \
+            --volname "DynamicStreamManager" \
+            --background "assets/mielogo.jpeg" \
+            --window-pos 200 120 \
+            --window-size 800 400 \
+            --icon-size 100 \
+            --icon "DynamicStreamManager-macos" 200 190 \
+            --hide-extension "DynamicStreamManager-macos" \
+            --app-drop-link 600 185 \
+            "dist/DynamicStreamManager.dmg" \
+            "dist"
+        # Delete all artifacts except .dmg
+        find dist -type f ! -name '*.dmg' -delete
 
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
@@ -41,8 +73,8 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ github.event.release.upload_url }}
-        asset_path: dist/DynamicStreamManager-macos
-        asset_name: DynamicStreamManager-macos
+        asset_path: dist/DynamicStreamManager.dmg
+        asset_name: DynamicStreamManager.dmg
         asset_content_type: application/octet-stream
 
     - name: Upload Release for Windows
