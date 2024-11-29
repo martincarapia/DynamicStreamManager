@@ -21,44 +21,52 @@ class StreamManager {
             ffmpegCommand.push('-i', url);
         });
 
-        // Determine the grid size (e.g., 2x2, 3x3)
-        const numInputs = inputUrls.length;
-        const gridSize = Math.ceil(Math.sqrt(numInputs));
-        
-        // Construct the filter_complex part
-        let filterComplex = [];
-        for (let i = 0; i < numInputs; i++) {
-            filterComplex.push(`[${i}:v]scale=iw/${gridSize}:ih/${gridSize}[v${i}];`);
-        }
+        // Add fps option
+        ffmpegCommand.push('-r', '60');
 
-        // Stack the videos horizontally and vertically
-        for (let row = 0; row < gridSize; row++) {
-            let rowInputs = '';
-            for (let col = 0; col < gridSize; col++) {
-                if (row * gridSize + col < numInputs) {
-                    rowInputs += `[v${row * gridSize + col}]`;
+        if (inputUrls.length === 1) {
+            // If there is only one input stream, directly map it to the output
+            ffmpegCommand.push('-c', 'copy', '-f', 'flv', outputUrl);
+        } else {
+            // Determine the grid size (e.g., 2x2, 3x3)
+            const numInputs = inputUrls.length;
+            const gridSize = Math.ceil(Math.sqrt(numInputs));
+            
+            // Construct the filter_complex part
+            let filterComplex = [];
+            for (let i = 0; i < numInputs; i++) {
+                filterComplex.push(`[${i}:v]scale=iw/${gridSize}:ih/${gridSize}[v${i}];`);
+            }
+
+            // Stack the videos horizontally and vertically
+            for (let row = 0; row < gridSize; row++) {
+                let rowInputs = '';
+                for (let col = 0; col < gridSize; col++) {
+                    if (row * gridSize + col < numInputs) {
+                        rowInputs += `[v${row * gridSize + col}]`;
+                    }
+                }
+                if (rowInputs) {
+                    filterComplex.push(`${rowInputs}hstack=inputs=${Math.min(gridSize, numInputs - row * gridSize)}[row${row}];`);
                 }
             }
-            if (rowInputs) {
-                filterComplex.push(`${rowInputs}hstack=inputs=${Math.min(gridSize, numInputs - row * gridSize)}[row${row}];`);
-            }
-        }
 
-        // Combine all rows vertically
-        let rowInputs = '';
-        for (let row = 0; row < gridSize; row++) {
-            if (filterComplex.join('').includes(`[row${row}]`)) {
-                rowInputs += `[row${row}]`;
+            // Combine all rows vertically
+            let rowInputs = '';
+            for (let row = 0; row < gridSize; row++) {
+                if (filterComplex.join('').includes(`[row${row}]`)) {
+                    rowInputs += `[row${row}]`;
+                }
             }
-        }
-        if (rowInputs && rowInputs.split('[').length - 1 > 1) {
-            filterComplex.push(`${rowInputs}vstack=inputs=${rowInputs.split('[').length - 1}[outv]`);
-        } else {
-            filterComplex.push(`${rowInputs}copy[outv]`);
-        }
+            if (rowInputs && rowInputs.split('[').length - 1 > 1) {
+                filterComplex.push(`${rowInputs}vstack=inputs=${rowInputs.split('[').length - 1}[outv]`);
+            } else {
+                filterComplex.push(`${rowInputs}copy[outv]`);
+            }
 
-        // Add filter_complex to the command
-        ffmpegCommand.push('-filter_complex', filterComplex.join(' '), '-map', '[outv]', '-pix_fmt', 'yuv420p', '-f', 'flv', outputUrl);
+            // Add filter_complex to the command
+            ffmpegCommand.push('-filter_complex', filterComplex.join(' '), '-map', '[outv]', '-pix_fmt', 'yuv420p', '-f', 'flv', outputUrl);
+        }
 
         // Spawn the ffmpeg process
         this.ffmpegProcess = spawn(ffmpegCommand.shift(), ffmpegCommand);
