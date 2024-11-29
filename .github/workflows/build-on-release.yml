@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
 
     steps:
     - name: Checkout code
@@ -29,6 +29,27 @@ jobs:
         npm install -g pkg
         pkg .
 
+    - name: Create DMG on macOS
+      if: runner.os == 'macOS'
+      run: |
+        echo "Creating DMG on macOS"
+        # Install create-dmg tool
+        brew install create-dmg
+        # Create the DMG
+        create-dmg \
+            --volname "DynamicStreamManager" \
+            --background "assets/mielogo.jpeg" \
+            --window-pos 200 120 \
+            --window-size 800 400 \
+            --icon-size 100 \
+            --icon "DynamicStreamManager.app" 200 190 \
+            --hide-extension "DynamicStreamManager.app" \
+            --app-drop-link 600 185 \
+            "dist/DynamicStreamManager.dmg" \
+            "dist"
+        # Delete all artifacts except .dmg
+        find dist -type f ! -name '*.dmg' -delete
+
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
       with:
@@ -41,8 +62,8 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ github.event.release.upload_url }}
-        asset_path: dist/DynamicStreamManager-macos
-        asset_name: DynamicStreamManager-macos
+        asset_path: dist/DynamicStreamManager.dmg
+        asset_name: DynamicStreamManager.dmg
         asset_content_type: application/octet-stream
 
     - name: Upload Release for Windows
